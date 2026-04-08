@@ -1,3 +1,18 @@
 QMainWindow{
     background-color: #1e1e1e;
 }
+QTreeWidget#setup_ui_arvore_pastas {
+    background-color: #1e1e1e;
+    color: white;
+    font-weight: bold;
+}
+QMenuBar{
+    background-color: #1e1e1e;
+    border-bottom: 1px solid white;
+    padding: 5px 5px;
+    color: white;
+}
+QMenuBar::item:selected{
+    padding: 5px 5px;
+    background-color: #5a5a5a;
+}
