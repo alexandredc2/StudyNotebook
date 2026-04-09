@@ -54,6 +54,7 @@ class MainWindow(QMainWindow):
         menu_about = menu_bar.addMenu("Sobre")
 
         # Cria o Rodapé:
+        status_bar = self.statusBar()
 
         # Chama a função de estilização do painel de pastas:
         self._setup_ui_pastas()
@@ -104,7 +105,10 @@ class MainWindow(QMainWindow):
 
         # Objetos que serão utilizados dentro do layout
         self.documento_formatacao = QWidget()
+        self.documento_formatacao.setObjectName("setup_ui_documento_formatacao")
+        self.documento_formatacao.setMinimumHeight(60)
         self.documento_area = QScrollArea()
+        self.documento_area.setObjectName("setup_ui_documento_area")
 
         # Inserção de Objetos no layout:
         self.layout_documento.addWidget(self.documento_formatacao)
