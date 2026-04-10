@@ -1,6 +1,6 @@
 # -> Bibliotecas importadas:
 import os
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QEvent
 from PyQt5.QtGui import QIcon, QFont
 from PyQt5.QtWidgets import QMainWindow, QSplitter, QWidget, QVBoxLayout, QHBoxLayout, QTreeWidget, QMenu, \
     QTreeWidgetItem, \
@@ -53,6 +53,32 @@ class MainWindow(QMainWindow):
         self.selec_texto_ident_center.clicked.connect(lambda: self._setup_caderno_ident(Qt.AlignCenter))
         self.selec_texto_ident_right.clicked.connect(lambda: self._setup_caderno_ident(Qt.AlignRight))
         self.selec_texto_ident_justify.clicked.connect(lambda: self._setup_caderno_ident(Qt.AlignJustify))
+
+        # Conexão referente a função de zoom in e zoom out da página de cadernos
+        self.documento_area.installEventFilter(self)
+        self.documento_area.viewport().installEventFilter(self)
+
+    def eventFilter(self,obj,event):
+        # Essa função é responsável pelo controle de zoom in e zoom out do documento de texto
+        if obj in (self.documento_area, self.documento_area.viewport()) and event.type() == QEvent.Wheel:
+            if event.modifiers() == Qt.ControlModifier:
+                delta = event.angleDelta().y()
+                if delta > 0:
+                    self.zoom_fator = min(3.0, self.zoom_fator+0.1)
+                    self.caderno.zoomIn(1)
+                else:
+                    self.zoom_fator = max(0.3, self.zoom_fator-0.1)
+                    self.caderno.zoomOut(1)
+                self._aplicar_zoom_documento()
+                return True # consome o evento, não scrolla
+        return super().eventFilter(obj,event)
+
+    def _aplicar_zoom_documento(self):
+        base_w = 794
+        base_h = 1123
+        nova_w = int(base_w * self.zoom_fator)
+        nova_h = int(base_h * self.zoom_fator)
+        self.documento_folha.setFixedSize(nova_w, nova_h)
 
     def _setup_ui(self):
         # Definição de Layouts existentes:
@@ -190,6 +216,7 @@ class MainWindow(QMainWindow):
 
         # Objetos que serão utilizados
         self.caderno = QTextEdit()
+        self.caderno.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.caderno.setObjectName("setup_ui_caderno")
 
         # Inserção dos objetos no layout
