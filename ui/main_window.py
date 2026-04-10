@@ -1,12 +1,14 @@
 # -> Bibliotecas importadas:
 import os
-from PyQt5.QtCore import Qt, QEvent
-from PyQt5.QtGui import QIcon, QFont
+from PyQt5.QtCore import Qt, QEvent, QMarginsF
+from PyQt5.QtGui import QIcon, QFont, QTextDocument, QTextCursor, QTextDocumentFragment, QPageLayout
+from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 from PyQt5.QtWidgets import QMainWindow, QSplitter, QWidget, QVBoxLayout, QHBoxLayout, QTreeWidget, QMenu, \
     QTreeWidgetItem, \
     QScrollArea, QComboBox, QPushButton, QFrame, QTextEdit
 
 # -> Constantes e arquivos importados:
+PATH_ICON_PRINT = os.path.join(os.path.dirname(__file__), "..", "assets", "icon_print.png")
 PATH_ICON_CENTER_ALIGN = os.path.join(os.path.dirname(__file__), "..", "assets", "icon_center_align.png")
 PATH_ICON_FONT = os.path.join(os.path.dirname(__file__), "..", "assets", "icon_font.png")
 PATH_ICON_FONT_DOWN = os.path.join(os.path.dirname(__file__), "..", "assets", "icon_font_down.png")
@@ -44,6 +46,7 @@ class MainWindow(QMainWindow):
 
     def _connect_signals(self):
         # Conexão de funções referentes a aba de formatação de textos
+        self.btn_imprimir.pressed.connect(self._setup_caderno_imprimir)
         self.selec_tamanho_texto.currentTextChanged.connect(self._setup_caderno_tamanho_texto)
         self.selec_font_negrito.clicked.connect(self._setup_caderno_toggle_negrito)
         self.selec_font_italico.clicked.connect(self._setup_caderno_toggle_italico)
@@ -169,6 +172,8 @@ class MainWindow(QMainWindow):
         layout_formatacao = QHBoxLayout(self.documento_formatacao)
 
         # Objetos que serão utilizados:
+        self.btn_imprimir = QPushButton()
+        self.btn_imprimir.setIcon(QIcon(PATH_ICON_PRINT))
         self.selec_tipo_texto = QComboBox()
         self.selec_tipo_texto.addItems(['Normal','Título 1','Título 2','Título 3'])
         self.selec_tamanho_texto = QComboBox()
@@ -193,6 +198,7 @@ class MainWindow(QMainWindow):
         self.selec_texto_ident_right.setIcon(QIcon(PATH_ICON_RIGHT_ALIGN))
         self.selec_texto_ident_center.setIcon(QIcon(PATH_ICON_CENTER_ALIGN))
         self.selec_texto_ident_justify.setIcon(QIcon(PATH_ICON_JUSTIFY_ALIGN))
+        layout_formatacao.addWidget(self.btn_imprimir)
         layout_formatacao.addWidget(self.selec_tipo_texto)
         layout_formatacao.addWidget(self.selec_tamanho_texto)
         layout_formatacao.addWidget(self.selec_font_negrito)
@@ -252,6 +258,29 @@ class MainWindow(QMainWindow):
             # Conecta a verificação na nova página também
             novo_editor.document().contentsChanged.connect(self._setup_ui_caderno_verificar_paginacao)
             novo_editor.cursorPositionChanged.connect(self._setup_caderno_atualizar_toolbar)
+
+    def _setup_caderno_imprimir(self):
+        printer = QPrinter(QPrinter.HighResolution)
+        printer.setPageSize(QPrinter.A4)
+
+        dialog = QPrintDialog(printer, self)
+        if dialog.exec_() == QPrintDialog.Accepted:
+            # Cria um documento unificado
+            doc_final = QTextDocument()
+            cursor = QTextCursor(doc_final)
+
+            for i, (folha,editor) in enumerate(self.paginas):
+                # Insere o conteúdo de cada página
+                cursor.insertFragment(QTextDocumentFragment.fromHtml(editor.document().toHtml()))
+
+                # Adiciona quebra de página entre elas (exceto na última)
+                if i < len(self.paginas) - 1:
+                    cursor.insertBlock()
+                    fmt = cursor.blockFormat()
+                    fmt.setPageBreakPolicy(fmt.PageBreak_AlwaysBefore)
+                    cursor.setBlockFormat(fmt)
+
+            doc_final.print_(printer)
 
     def _setup_caderno_tamanho_texto(self,tamanho):
         fmt = self.caderno.currentCharFormat()
