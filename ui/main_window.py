@@ -1,9 +1,10 @@
 # -> Bibliotecas importadas:
 import os
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QMainWindow, QSplitter, QWidget, QVBoxLayout, QTreeWidget, QMenu, QTreeWidgetItem, \
-    QScrollArea
+from PyQt5.QtGui import QIcon, QFont
+from PyQt5.QtWidgets import QMainWindow, QSplitter, QWidget, QVBoxLayout, QHBoxLayout, QTreeWidget, QMenu, \
+    QTreeWidgetItem, \
+    QScrollArea, QComboBox, QPushButton, QFrame, QTextEdit
 
 # -> Constantes e arquivos importados:
 PATH_ICON_CENTER_ALIGN = os.path.join(os.path.dirname(__file__), "..", "assets", "icon_center_align.png")
@@ -17,6 +18,9 @@ PATH_ICON_RIGHT_ALIGN = os.path.join(os.path.dirname(__file__), "..", "assets", 
 PATH_STYLES = os.path.join(os.path.dirname(__file__), "..", "assets", "styles.css")
 PATH_ICON_FOLDER_CLOSED = os.path.join(os.path.dirname(__file__), "..", "assets", "icon_folder_closed.png")
 PATH_ICON_FOLDER_OPEN = os.path.join(os.path.dirname(__file__), "..", "assets", "icon_folder_open.png")
+PATH_ICON_FONT_BOLD = os.path.join(os.path.dirname(__file__), "..", "assets", "icon_negrito.png")
+PATH_ICON_FONT_ITALIC = os.path.join(os.path.dirname(__file__), "..", "assets", "icon_italic.png")
+PATH_ICON_FONT_UNDERLINE = os.path.join(os.path.dirname(__file__), "..", "assets", "icon_underline.png")
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -29,6 +33,18 @@ class MainWindow(QMainWindow):
             self.setStyleSheet(f.read())
 
         self._setup_ui()
+        self._setup_ui_pastas()
+        self._setup_ui_documento()
+        self._setup_ui_documento_formatacao()
+        self._setup_ui_documento_folha()
+        self._connect_signals()
+
+    def _connect_signals(self):
+        # Conexão de funções referentes a aba de formatação de textos
+        self.selec_font_negrito.clicked.connect(self._setup_caderno_toggle_negrito)
+        self.selec_font_italico.clicked.connect(self._setup_caderno_toggle_italico)
+        self.selec_font_sublinhado.clicked.connect(self._setup_caderno_toggle_sublinhado)
+        self.caderno.cursorPositionChanged.connect(self._setup_caderno_atualizar_toolbar)
 
     def _setup_ui(self):
         # Definição de Layouts existentes:
@@ -55,12 +71,6 @@ class MainWindow(QMainWindow):
 
         # Cria o Rodapé:
         status_bar = self.statusBar()
-
-        # Chama a função de estilização do painel de pastas:
-        self._setup_ui_pastas()
-
-        # Chama a função de estilização do painel de documento:
-        self._setup_ui_documento()
 
     def _setup_ui_pastas(self):
         # Define o layout do widget
@@ -109,9 +119,98 @@ class MainWindow(QMainWindow):
         self.documento_formatacao.setMinimumHeight(60)
         self.documento_area = QScrollArea()
         self.documento_area.setObjectName("setup_ui_documento_area")
+        self.documento_canvas = QWidget()
+        self.documento_canvas.setObjectName("setup_ui_documento_canvas")
+        layout_canvas = QVBoxLayout(self.documento_canvas)
+        layout_canvas.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+        layout_canvas.setContentsMargins(0,40,0,40)
+        self.documento_folha = QWidget()
+        self.documento_folha.setObjectName("setup_ui_documento_folha")
+        self.documento_folha.setFixedSize(794,1123)
+        self.documento_area.setWidgetResizable(True)
+        self.documento_area.setWidget(self.documento_canvas)
 
         # Inserção de Objetos no layout:
         self.layout_documento.addWidget(self.documento_formatacao)
         self.layout_documento.addWidget(self.documento_area)
+        layout_canvas.addWidget(self.documento_folha)
 
+    def _setup_ui_documento_formatacao(self):
+        layout_formatacao = QHBoxLayout(self.documento_formatacao)
 
+        # Objetos que serão utilizados:
+        self.selec_tipo_texto = QComboBox()
+        self.selec_tipo_texto.addItems(['Normal','Título 1','Título 2','Título 3'])
+        self.selec_tamanho_texto = QComboBox()
+        self.selec_tamanho_texto.addItems(['6','7','8','9','10','11','12','13','14','16','18','20','24','28'])
+        self.selec_font_negrito = QPushButton()
+        self.selec_font_negrito.setCheckable(True)
+        self.selec_font_italico = QPushButton()
+        self.selec_font_italico.setCheckable(True)
+        self.selec_font_sublinhado = QPushButton()
+        self.selec_font_sublinhado.setCheckable(True)
+        self.selec_font_negrito.setIcon(QIcon(PATH_ICON_FONT_BOLD))
+        self.selec_font_italico.setIcon(QIcon(PATH_ICON_FONT_ITALIC))
+        self.selec_font_sublinhado.setIcon(QIcon(PATH_ICON_FONT_UNDERLINE))
+        self.selec_texto_ident_left = QPushButton()
+        self.selec_texto_ident_right = QPushButton()
+        self.selec_texto_ident_center = QPushButton()
+        self.selec_texto_ident_justify = QPushButton()
+        separador = QFrame()
+        separador.setFrameShape(QFrame.VLine)
+        self.selec_texto_ident_left.setIcon(QIcon(PATH_ICON_LEFT_ALIGN))
+        self.selec_texto_ident_right.setIcon(QIcon(PATH_ICON_RIGHT_ALIGN))
+        self.selec_texto_ident_center.setIcon(QIcon(PATH_ICON_CENTER_ALIGN))
+        self.selec_texto_ident_justify.setIcon(QIcon(PATH_ICON_JUSTIFY_ALIGN))
+        layout_formatacao.addWidget(self.selec_tipo_texto)
+        layout_formatacao.addWidget(self.selec_tamanho_texto)
+        layout_formatacao.addWidget(self.selec_font_negrito)
+        layout_formatacao.addWidget(self.selec_font_italico)
+        layout_formatacao.addWidget(self.selec_font_sublinhado)
+        layout_formatacao.addWidget(separador)
+        layout_formatacao.addWidget(self.selec_texto_ident_left)
+        layout_formatacao.addWidget(self.selec_texto_ident_right)
+        layout_formatacao.addWidget(self.selec_texto_ident_center)
+        layout_formatacao.addWidget(self.selec_texto_ident_justify)
+        layout_formatacao.addStretch()
+
+    def _setup_ui_documento_folha(self):
+        # Definição de layout
+        layout_folha = QVBoxLayout(self.documento_folha)
+        layout_folha.setContentsMargins(40,40,40,40)
+
+        # Objetos que serão utilizados
+        self.caderno = QTextEdit()
+        self.caderno.setObjectName("setup_ui_caderno")
+
+        # Inserção dos objetos no layout
+        layout_folha.addWidget(self.caderno)
+
+    def _setup_caderno_toggle_negrito(self):
+        # Primariamente, essa função tem como objeto ativar e desabilitar a função negrito aos textos.
+        fmt = self.caderno.currentCharFormat()
+        is_bold = self.selec_font_negrito.isChecked()
+        fmt.setFontWeight(QFont.Bold if is_bold else QFont.Normal)
+        self.caderno.mergeCurrentCharFormat(fmt)
+
+    def _setup_caderno_toggle_italico(self):
+        # Primariamente, essa função tem como objeto ativar e desabilitar a função itálico aos textos.
+        fmt = self.caderno.currentCharFormat()
+        is_italic = self.selec_font_italico.isChecked()
+        fmt.setFontItalic(is_italic)
+        self.caderno.mergeCurrentCharFormat(fmt)
+
+    def _setup_caderno_toggle_sublinhado(self):
+        # Primariamente, essa função tem como objeto ativar e desabilitar a função sublinhado aos textos.
+        fmt = self.caderno.currentCharFormat()
+        is_sublinhado = self.selec_font_sublinhado.isChecked()
+        fmt.setFontUnderline(is_sublinhado)
+        self.caderno.mergeCurrentCharFormat(fmt)
+
+    def _setup_caderno_atualizar_toolbar(self):
+        # Primariamente, essa função tem como objetivo verificar textos que já tem o negrito, italico
+        # ou sublinhado ativo para que atualize a toolbar corretamente.
+        fmt = self.caderno.currentCharFormat()
+        self.selec_font_negrito.setChecked(fmt.fontWeight() == QFont.Bold)
+        self.selec_font_italico.setChecked(fmt.fontItalic())
+        self.selec_font_sublinhado.setChecked(fmt.fontUnderline())
