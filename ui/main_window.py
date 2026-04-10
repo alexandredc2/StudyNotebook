@@ -54,6 +54,9 @@ class MainWindow(QMainWindow):
         self.selec_texto_ident_right.clicked.connect(lambda: self._setup_caderno_ident(Qt.AlignRight))
         self.selec_texto_ident_justify.clicked.connect(lambda: self._setup_caderno_ident(Qt.AlignJustify))
 
+        # Conexão referente a verificação de ultrapassagem de limite de folha, para criar uma nova
+        self.caderno.document().contentsChanged.connect(self._setup_ui_caderno_verificar_paginacao)
+
         # Conexão referente a função de zoom in e zoom out da página de cadernos
         self.documento_area.installEventFilter(self)
         self.documento_area.viewport().installEventFilter(self)
@@ -65,10 +68,8 @@ class MainWindow(QMainWindow):
                 delta = event.angleDelta().y()
                 if delta > 0:
                     self.zoom_fator = min(3.0, self.zoom_fator+0.1)
-                    self.caderno.zoomIn(1)
                 else:
                     self.zoom_fator = max(0.3, self.zoom_fator-0.1)
-                    self.caderno.zoomOut(1)
                 self._aplicar_zoom_documento()
                 return True # consome o evento, não scrolla
         return super().eventFilter(obj,event)
@@ -76,9 +77,8 @@ class MainWindow(QMainWindow):
     def _aplicar_zoom_documento(self):
         base_w = 794
         base_h = 1123
-        nova_w = int(base_w * self.zoom_fator)
-        nova_h = int(base_h * self.zoom_fator)
-        self.documento_folha.setFixedSize(nova_w, nova_h)
+        for folha, editor in self.paginas:
+            folha.setFixedSize(int(base_w * self.zoom_fator), int(base_h * self.zoom_fator))
 
     def _setup_ui(self):
         # Definição de Layouts existentes:
@@ -155,19 +155,15 @@ class MainWindow(QMainWindow):
         self.documento_area.setObjectName("setup_ui_documento_area")
         self.documento_canvas = QWidget()
         self.documento_canvas.setObjectName("setup_ui_documento_canvas")
-        layout_canvas = QVBoxLayout(self.documento_canvas)
-        layout_canvas.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-        layout_canvas.setContentsMargins(0,40,0,40)
-        self.documento_folha = QWidget()
-        self.documento_folha.setObjectName("setup_ui_documento_folha")
-        self.documento_folha.setFixedSize(794,1123)
+        self.layout_canvas = QVBoxLayout(self.documento_canvas)
+        self.layout_canvas.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+        self.layout_canvas.setContentsMargins(0,40,0,40)
         self.documento_area.setWidgetResizable(True)
         self.documento_area.setWidget(self.documento_canvas)
 
         # Inserção de Objetos no layout:
         self.layout_documento.addWidget(self.documento_formatacao)
         self.layout_documento.addWidget(self.documento_area)
-        layout_canvas.addWidget(self.documento_folha)
 
     def _setup_ui_documento_formatacao(self):
         layout_formatacao = QHBoxLayout(self.documento_formatacao)
@@ -211,16 +207,51 @@ class MainWindow(QMainWindow):
 
     def _setup_ui_documento_folha(self):
         # Definição de layout
-        layout_folha = QVBoxLayout(self.documento_folha)
+        self.paginas = []
+        self.caderno = self._setup_ui_caderno_criar_folha()
+
+    def _setup_ui_caderno_criar_folha(self):
+        folha = QWidget()
+        folha.setObjectName("setup_ui_documento_folha")
+        folha.setFixedSize(int(794 * self.zoom_fator), int(1123 * self.zoom_fator))
+
+        layout_folha = QVBoxLayout(folha)
         layout_folha.setContentsMargins(40,40,40,40)
 
-        # Objetos que serão utilizados
-        self.caderno = QTextEdit()
-        self.caderno.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.caderno.setObjectName("setup_ui_caderno")
+        editor = QTextEdit()
+        editor.setObjectName("setup_ui_caderno")
+        editor.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        editor.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
-        # Inserção dos objetos no layout
-        layout_folha.addWidget(self.caderno)
+        layout_folha.addWidget(editor)
+        self.layout_canvas.addWidget(folha)
+        self.paginas.append((folha,editor))
+
+        return editor
+
+    def _setup_ui_caderno_verificar_paginacao(self):
+        editor = self.caderno
+        doc = editor.document()
+
+        # Altura disponível dentro da folha (descontando as margens)
+        altura_disponivel = int(1123 * self.zoom_fator) - 80
+
+        # Altura real do conteúdo
+        altura_conteudo = doc.size().height()
+
+        if altura_conteudo > altura_disponivel:
+            # pega o texto excedente
+            cursor = editor.textCursor()
+            cursor.movePosition(cursor.End)
+
+            # Cria nova pagina e move o foco
+            novo_editor = self._setup_ui_caderno_criar_folha()
+            novo_editor.setFocus()
+            self.caderno = novo_editor
+
+            # Conecta a verificação na nova página também
+            novo_editor.document().contentsChanged.connect(self._setup_ui_caderno_verificar_paginacao)
+            novo_editor.cursorPositionChanged.connect(self._setup_caderno_atualizar_toolbar)
 
     def _setup_caderno_tamanho_texto(self,tamanho):
         fmt = self.caderno.currentCharFormat()
