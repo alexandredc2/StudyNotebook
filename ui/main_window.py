@@ -32,6 +32,9 @@ class MainWindow(QMainWindow):
         with open(PATH_STYLES, "r") as f:
             self.setStyleSheet(f.read())
 
+        # Variáveis auxiliares para funções implementadas:
+        self.zoom_fator = 1.0
+
         self._setup_ui()
         self._setup_ui_pastas()
         self._setup_ui_documento()
@@ -41,10 +44,15 @@ class MainWindow(QMainWindow):
 
     def _connect_signals(self):
         # Conexão de funções referentes a aba de formatação de textos
+        self.selec_tamanho_texto.currentTextChanged.connect(self._setup_caderno_tamanho_texto)
         self.selec_font_negrito.clicked.connect(self._setup_caderno_toggle_negrito)
         self.selec_font_italico.clicked.connect(self._setup_caderno_toggle_italico)
         self.selec_font_sublinhado.clicked.connect(self._setup_caderno_toggle_sublinhado)
         self.caderno.cursorPositionChanged.connect(self._setup_caderno_atualizar_toolbar)
+        self.selec_texto_ident_left.clicked.connect(lambda: self._setup_caderno_ident(Qt.AlignLeft))
+        self.selec_texto_ident_center.clicked.connect(lambda: self._setup_caderno_ident(Qt.AlignCenter))
+        self.selec_texto_ident_right.clicked.connect(lambda: self._setup_caderno_ident(Qt.AlignRight))
+        self.selec_texto_ident_justify.clicked.connect(lambda: self._setup_caderno_ident(Qt.AlignJustify))
 
     def _setup_ui(self):
         # Definição de Layouts existentes:
@@ -143,6 +151,7 @@ class MainWindow(QMainWindow):
         self.selec_tipo_texto.addItems(['Normal','Título 1','Título 2','Título 3'])
         self.selec_tamanho_texto = QComboBox()
         self.selec_tamanho_texto.addItems(['6','7','8','9','10','11','12','13','14','16','18','20','24','28'])
+        self.selec_tamanho_texto.setCurrentText('8')
         self.selec_font_negrito = QPushButton()
         self.selec_font_negrito.setCheckable(True)
         self.selec_font_italico = QPushButton()
@@ -186,6 +195,11 @@ class MainWindow(QMainWindow):
         # Inserção dos objetos no layout
         layout_folha.addWidget(self.caderno)
 
+    def _setup_caderno_tamanho_texto(self,tamanho):
+        fmt = self.caderno.currentCharFormat()
+        fmt.setFontPointSize(float(tamanho))
+        self.caderno.mergeCurrentCharFormat(fmt)
+
     def _setup_caderno_toggle_negrito(self):
         # Primariamente, essa função tem como objeto ativar e desabilitar a função negrito aos textos.
         fmt = self.caderno.currentCharFormat()
@@ -207,6 +221,9 @@ class MainWindow(QMainWindow):
         fmt.setFontUnderline(is_sublinhado)
         self.caderno.mergeCurrentCharFormat(fmt)
 
+    def _setup_caderno_ident(self,alinhamento):
+        self.caderno.setAlignment(alinhamento)
+
     def _setup_caderno_atualizar_toolbar(self):
         # Primariamente, essa função tem como objetivo verificar textos que já tem o negrito, italico
         # ou sublinhado ativo para que atualize a toolbar corretamente.
@@ -214,3 +231,11 @@ class MainWindow(QMainWindow):
         self.selec_font_negrito.setChecked(fmt.fontWeight() == QFont.Bold)
         self.selec_font_italico.setChecked(fmt.fontItalic())
         self.selec_font_sublinhado.setChecked(fmt.fontUnderline())
+
+        # O trecho abaixo é para atualizar o tamanho da fonte quando diferentes textos forem selecionados
+        tamanho = int(fmt.fontPointSize())
+        if tamanho <= 0:
+            tamanho = 8
+        self.selec_tamanho_texto.blockSignals(True)
+        self.selec_tamanho_texto.setCurrentText(str(tamanho))
+        self.selec_tamanho_texto.blockSignals(False)
