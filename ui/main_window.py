@@ -25,16 +25,20 @@ PATH_ICON_FONT_ITALIC = os.path.join(os.path.dirname(__file__), "..", "assets", 
 PATH_ICON_FONT_UNDERLINE = os.path.join(os.path.dirname(__file__), "..", "assets", "icon_underline.png")
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self,banco):
         super().__init__()
         self.setWindowTitle("Study Notebook")
         self.setMinimumSize(1200,750)
 
-        # Carrega estilo definido em assets/styles.css
+        ### Carrega estilo definido em assets/styles.css
         with open(PATH_STYLES, "r") as f:
             self.setStyleSheet(f.read())
 
-        # Variáveis auxiliares para funções implementadas:
+        ### Carrega banco de dados selecionado
+        self.banco = banco
+        self.banco_selecionado = None
+
+        ### Variáveis auxiliares para funções implementadas:
         self.zoom_fator = 1.0
 
         self._setup_ui()
@@ -45,6 +49,9 @@ class MainWindow(QMainWindow):
         self._connect_signals()
 
     def _connect_signals(self):
+        # Conexão de funções referentes a aba de gerenciamento de pastas
+        self.arvore_pastas.itemChanged.connect(self._setup_ui_pasta_renomeada)
+
         # Conexão de funções referentes a aba de formatação de textos
         self.btn_imprimir.pressed.connect(self._setup_caderno_imprimir)
         self.selec_tamanho_texto.currentTextChanged.connect(self._setup_caderno_tamanho_texto)
@@ -109,6 +116,9 @@ class MainWindow(QMainWindow):
         # Cria o Rodapé:
         status_bar = self.statusBar()
 
+    ### --------------------------------------------------------------
+    ### Funções pertinentes a configuração das pastas e arquivos
+    ### --------------------------------------------------------------
     def _setup_ui_pastas(self):
         # Define o layout do widget
         self.painel_pastas.setLayout(self.layout_pastas)
@@ -119,6 +129,15 @@ class MainWindow(QMainWindow):
         self.arvore_pastas.setHeaderHidden(True)
         self.arvore_pastas.setContextMenuPolicy(Qt.CustomContextMenu)
         self.arvore_pastas.customContextMenuRequested.connect(self._setup_ui_pastas_menu)
+
+        # Captura do banco de dados pastas existentes
+        pastas_map = {}
+        for id_pasta,nome in self.banco._buscar_pastas_existentes():
+            item = QTreeWidgetItem(self.arvore_pastas, [nome])
+            item.setIcon(0,QIcon(PATH_ICON_FOLDER_CLOSED))
+            item.setData(0,Qt.UserRole,id_pasta)
+            item.setData(0,Qt.UserRole+1,"pasta")
+            pastas_map[id_pasta]=item
 
         # Inserção de Objetos no layout:
         self.layout_pastas.addWidget(self.arvore_pastas)
@@ -137,15 +156,43 @@ class MainWindow(QMainWindow):
         if action == act_criar_pasta:
             self._setup_ui_pastas_criar()
         elif action == act_renomear_pasta:
-            pass
+            self._setup_ui_pastas_renomear()
         elif action == act_deletar_pasta:
-            pass
+            self._setup_ui_pasta_apagar()
 
     def _setup_ui_pastas_criar(self, nome="Nova Pasta"):
+        id_pasta = self.banco._criar_nova_pasta(nome)
         item = QTreeWidgetItem(self.arvore_pastas,[nome])
         item.setIcon(0,QIcon(PATH_ICON_FOLDER_CLOSED))
+        item.setData(0,Qt.UserRole,id_pasta)
+        item.setData(0,Qt.UserRole+1,"pasta")
         return item
 
+    def _setup_ui_pastas_renomear(self):
+        ### Essa função é chamada toda vez que se tenta renomear uma pasta
+        pasta_selecionada = self.arvore_pastas.currentItem()
+        if pasta_selecionada is not None:
+            pasta_selecionada.setFlags(pasta_selecionada.flags() | Qt.ItemIsEditable)
+            self.arvore_pastas.editItem(pasta_selecionada,0)
+
+    def _setup_ui_pasta_renomeada(self,item):
+        ### Essa função somente age após uma real modificação de pasta
+        tipo = item.data(0,Qt.UserRole+1)
+        id_item = item.data(0,Qt.UserRole)
+        novo_nome = item.text(0)
+        self.banco._renomear_pasta_existente(id_item,novo_nome)
+
+    def _setup_ui_pasta_apagar(self):
+        pasta_selecionada = self.arvore_pastas.currentItem()
+        if pasta_selecionada is not None:
+            id_pasta = pasta_selecionada.data(0,Qt.UserRole)
+            self.banco._apagar_pasta_existente(id_pasta)
+            parent = pasta_selecionada.parent() or self.arvore_pastas.invisibleRootItem()
+            parent.removeChild(pasta_selecionada)
+
+    ### --------------------------------------------------------------
+    ### Funções pertinentes a configuração do caderno e folhas
+    ### --------------------------------------------------------------
     def _setup_ui_documento(self):
         # Define o layout do widget
         self.painel_documento.setLayout(self.layout_documento)
@@ -231,6 +278,7 @@ class MainWindow(QMainWindow):
         layout_folha.setContentsMargins(40,40,40,40)
 
         editor = QTextEdit()
+        editor.setAcceptRichText(True)
         editor.setObjectName("setup_ui_caderno")
         editor.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         editor.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
