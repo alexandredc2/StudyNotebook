@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import QMainWindow, QSplitter, QWidget, QVBoxLayout, QHBoxL
     QScrollArea, QComboBox, QPushButton, QFrame, QTextEdit
 
 # -> Constantes e arquivos importados:
+PATH_ICON_SAVE = os.path.join(os.path.dirname(__file__), "..", "assets", "icon_save.png")
 PATH_ICON_PRINT = os.path.join(os.path.dirname(__file__), "..", "assets", "icon_print.png")
 PATH_ICON_CENTER_ALIGN = os.path.join(os.path.dirname(__file__), "..", "assets", "icon_center_align.png")
 PATH_ICON_FONT = os.path.join(os.path.dirname(__file__), "..", "assets", "icon_font.png")
@@ -51,6 +52,8 @@ class MainWindow(QMainWindow):
     def _connect_signals(self):
         # Conexão de funções referentes a aba de gerenciamento de pastas
         self.arvore_pastas.itemChanged.connect(self._setup_ui_pasta_renomeada)
+        self.arvore_pastas.itemExpanded.connect(self._setup_ui_pasta_expandida)
+        self.arvore_pastas.itemCollapsed.connect(self._setup_ui_pasta_recolhida)
 
         # Conexão de funções referentes a aba de formatação de textos
         self.btn_imprimir.pressed.connect(self._setup_caderno_imprimir)
@@ -71,18 +74,26 @@ class MainWindow(QMainWindow):
         self.documento_area.installEventFilter(self)
         self.documento_area.viewport().installEventFilter(self)
 
-    def eventFilter(self,obj,event):
-        # Essa função é responsável pelo controle de zoom in e zoom out do documento de texto
-        if obj in (self.documento_area, self.documento_area.viewport()) and event.type() == QEvent.Wheel:
+    def eventFilter(self, obj, event):
+        # Desseleciona pasta ao clicar em área vazia da sidebar
+        if obj == self.arvore_pastas.viewport() and event.type() == QEvent.MouseButtonPress:
+            item = self.arvore_pastas.itemAt(event.pos())
+            if item is None:
+                self.arvore_pastas.clearSelection()
+                self.arvore_pastas.setCurrentItem(None)
+
+        # Zoom in e zoom out do documento de texto
+        if hasattr(self, 'documento_area') and obj in (self.documento_area,
+                                                       self.documento_area.viewport()) and event.type() == QEvent.Wheel:
             if event.modifiers() == Qt.ControlModifier:
                 delta = event.angleDelta().y()
                 if delta > 0:
-                    self.zoom_fator = min(3.0, self.zoom_fator+0.1)
+                    self.zoom_fator = min(3.0, self.zoom_fator + 0.1)
                 else:
-                    self.zoom_fator = max(0.3, self.zoom_fator-0.1)
+                    self.zoom_fator = max(0.3, self.zoom_fator - 0.1)
                 self._aplicar_zoom_documento()
-                return True # consome o evento, não scrolla
-        return super().eventFilter(obj,event)
+                return True
+        return super().eventFilter(obj, event)
 
     def _aplicar_zoom_documento(self):
         base_w = 794
@@ -126,18 +137,28 @@ class MainWindow(QMainWindow):
         # Objetos que serão utilizados dentro do layout
         self.arvore_pastas = QTreeWidget()
         self.arvore_pastas.setObjectName("setup_ui_arvore_pastas")
+        self.arvore_pastas.viewport().installEventFilter(self)
         self.arvore_pastas.setHeaderHidden(True)
         self.arvore_pastas.setContextMenuPolicy(Qt.CustomContextMenu)
         self.arvore_pastas.customContextMenuRequested.connect(self._setup_ui_pastas_menu)
 
         # Captura do banco de dados pastas existentes
+        pastas = self.banco._buscar_pastas_existentes()
         pastas_map = {}
-        for id_pasta,nome in self.banco._buscar_pastas_existentes():
-            item = QTreeWidgetItem(self.arvore_pastas, [nome])
-            item.setIcon(0,QIcon(PATH_ICON_FOLDER_CLOSED))
-            item.setData(0,Qt.UserRole,id_pasta)
-            item.setData(0,Qt.UserRole+1,"pasta")
-            pastas_map[id_pasta]=item
+        # 1ª passada — cria todos os itens
+        for id_pasta, nome, id_pai in pastas:
+            item = QTreeWidgetItem([nome])
+            item.setIcon(0, QIcon(PATH_ICON_FOLDER_CLOSED))
+            item.setData(0, Qt.UserRole, id_pasta)
+            item.setData(0, Qt.UserRole + 1, "pasta")
+            pastas_map[id_pasta] = item
+
+        # 2ª passada — encaixa na hierarquia
+        for id_pasta, nome, id_pai in pastas:
+            if id_pai is None:
+                self.arvore_pastas.addTopLevelItem(pastas_map[id_pasta])
+            else:
+                pastas_map[id_pai].addChild(pastas_map[id_pasta])
 
         # Inserção de Objetos no layout:
         self.layout_pastas.addWidget(self.arvore_pastas)
@@ -148,13 +169,29 @@ class MainWindow(QMainWindow):
         menu = QMenu()
 
         act_criar_pasta = menu.addAction("Nova Pasta")
+        act_criar_subpasta = menu.addAction("Criar Sub-pasta")
         act_renomear_pasta = menu.addAction("Renomear Pasta")
         act_deletar_pasta = menu.addAction("Deletar Pasta")
+        menu.addSeparator()
+        act_criar_notas = menu.addAction("Criar Anotações")
+        act_criar_canvas = menu.addAction("Criar Canvas")
+        act_criar_pendencias = menu.addAction("Criar Lista de Pendências")
+
+        # Habilita/desabilita conforme o contexto
+        if item is None:
+            act_criar_subpasta.setEnabled(False)
+            act_criar_notas.setEnabled(False)
+            act_criar_canvas.setEnabled(False)
+            act_criar_pendencias.setEnabled(False)
+        else:
+            act_criar_pasta.setEnabled(False)
 
         action = menu.exec_(self.arvore_pastas.viewport().mapToGlobal(position))
 
         if action == act_criar_pasta:
             self._setup_ui_pastas_criar()
+        elif item is not None and action == act_criar_subpasta:
+            self._setup_ui_pastas_criar_subpasta()
         elif action == act_renomear_pasta:
             self._setup_ui_pastas_renomear()
         elif action == act_deletar_pasta:
@@ -168,6 +205,21 @@ class MainWindow(QMainWindow):
         item.setData(0,Qt.UserRole+1,"pasta")
         return item
 
+    def _setup_ui_pastas_criar_subpasta(self):
+        pasta_selecionada = self.arvore_pastas.currentItem()
+
+        if pasta_selecionada is None:
+            return
+
+        id_pai = pasta_selecionada.data(0, Qt.UserRole)
+        id_nova = self.banco._criar_nova_pasta("Nova Sub-pasta", id_pai=id_pai)
+        item = QTreeWidgetItem(["Nova Sub-pasta"])
+        item.setIcon(0, QIcon(PATH_ICON_FOLDER_CLOSED))
+        item.setData(0, Qt.UserRole, id_nova)
+        item.setData(0, Qt.UserRole + 1, "pasta")
+        pasta_selecionada.addChild(item)
+        pasta_selecionada.setExpanded(True)
+
     def _setup_ui_pastas_renomear(self):
         ### Essa função é chamada toda vez que se tenta renomear uma pasta
         pasta_selecionada = self.arvore_pastas.currentItem()
@@ -177,9 +229,12 @@ class MainWindow(QMainWindow):
 
     def _setup_ui_pasta_renomeada(self,item):
         ### Essa função somente age após uma real modificação de pasta
-        tipo = item.data(0,Qt.UserRole+1)
+        novo_nome = item.text(0).strip()
+        if not novo_nome:
+            return
         id_item = item.data(0,Qt.UserRole)
-        novo_nome = item.text(0)
+        if id_item is None:
+            return
         self.banco._renomear_pasta_existente(id_item,novo_nome)
 
     def _setup_ui_pasta_apagar(self):
@@ -189,6 +244,12 @@ class MainWindow(QMainWindow):
             self.banco._apagar_pasta_existente(id_pasta)
             parent = pasta_selecionada.parent() or self.arvore_pastas.invisibleRootItem()
             parent.removeChild(pasta_selecionada)
+
+    def _setup_ui_pasta_expandida(self, item):
+        item.setIcon(0, QIcon(PATH_ICON_FOLDER_OPEN))
+
+    def _setup_ui_pasta_recolhida(self, item):
+        item.setIcon(0, QIcon(PATH_ICON_FOLDER_CLOSED))
 
     ### --------------------------------------------------------------
     ### Funções pertinentes a configuração do caderno e folhas
@@ -219,8 +280,8 @@ class MainWindow(QMainWindow):
         layout_formatacao = QHBoxLayout(self.documento_formatacao)
 
         # Objetos que serão utilizados:
-        self.btn_salvar = QPushButton("S")
-        #self.btn_salvar.setIcon(QIcon(PATH_ICON_SAVE))
+        self.btn_salvar = QPushButton()
+        self.btn_salvar.setIcon(QIcon(PATH_ICON_SAVE))
         self.btn_imprimir = QPushButton()
         self.btn_imprimir.setIcon(QIcon(PATH_ICON_PRINT))
         separador1 = QFrame()

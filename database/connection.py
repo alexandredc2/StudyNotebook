@@ -9,7 +9,7 @@ class DatabaseManager:
 
         ### Se não existir, cria a tabela para armazenamento das pastas:
         ### ID(INT) | NOME(TEXT)
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS pastas (ID INTEGER PRIMARY KEY AUTOINCREMENT, NOME TEXT NOT NULL)''')
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS pastas (ID INTEGER PRIMARY KEY AUTOINCREMENT, NOME TEXT NOT NULL, ID_PAI INTEGER, FOREIGN KEY (ID_PAI) REFERENCES pastas(ID))''')
 
         ### Commit do Banco de Dados
         self.db.commit()
@@ -17,8 +17,8 @@ class DatabaseManager:
     ### -------------------------------------------------------------------------
     ### Funções para gerenciamento de Pastas
     ### -------------------------------------------------------------------------
-    def _criar_nova_pasta(self,nome):
-        self.cursor.execute('INSERT INTO pastas (nome) VALUES (?)',(nome,))
+    def _criar_nova_pasta(self,nome,id_pai=None):
+        self.cursor.execute('INSERT INTO pastas (nome,id_pai) VALUES (?,?)',(nome,id_pai))
         self.db.commit()
         return self.cursor.lastrowid
     
@@ -31,5 +31,5 @@ class DatabaseManager:
         self.db.commit()
 
     def _buscar_pastas_existentes(self):
-        self.cursor.execute('SELECT id, nome FROM pastas')
+        self.cursor.execute('SELECT id, nome, id_pai FROM pastas')
         return self.cursor.fetchall()
