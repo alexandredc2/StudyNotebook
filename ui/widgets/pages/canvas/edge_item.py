@@ -8,7 +8,7 @@ class EdgeItem(QGraphicsLineItem):
         super().__init__()
         self.__source = source_port
         self.__target = target_port
-        self.setPen(QPen(QColor("#ffffff"), 2))
+        self.setPen(QPen(QColor("#ffffff"), 0.5))
         self.update_position()
 
     def update_position(self):

@@ -109,7 +109,7 @@ class NodeItem(QGraphicsItem):
 
     def paint(self, painter, option, widget):
         painter.drawRect(self.boundingRect())
-        painter.setPen(QPen(QColor("#ffffff"), 2))
+        painter.setPen(QPen(QColor("#ffffff"), 0.5))
         #painter.setBrush(QBrush(QColor("#2a2a2a")))
         painter.drawRect(self.boundingRect())
 
