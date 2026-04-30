@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import QMainWindow, QFrame, QHBoxLayout
 
 from ui.widgets.central import CentralArea
 from ui.widgets.directories import Directories
+from ui.widgets.menubar import MenuBar
 
 #Constantes
 MIN_WIDTH = 1490
@@ -14,7 +15,13 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(QSize(MIN_WIDTH,MIN_HEIGHT))
         self.setWindowFlags(Qt.FramelessWindowHint)
 
+        self._config_menubar()
         self._config_central_area()
+
+    def _config_menubar(self):
+        self.__menubar = MenuBar()
+        self.setMenuBar(self.__menubar)
+
 
     def _config_central_area(self):
         container = QFrame()
@@ -28,6 +35,8 @@ class MainWindow(QMainWindow):
 
         self.__central_area = CentralArea()
         layout.addWidget(self.__central_area, stretch=1)
+
+        self.__directories.view_changed.connect(self.__central_area.setCurrentIndex)
 
         self.setCentralWidget(container)
 

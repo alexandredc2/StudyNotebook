@@ -1,10 +1,12 @@
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QPixmap, QIcon
 from PyQt5.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QButtonGroup
 from assets.style import directories_style
 
 
 class Directories(QFrame):
+    view_changed = pyqtSignal(int)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("Frame_Directories")
@@ -98,5 +100,11 @@ class Directories(QFrame):
         layout.addWidget(self.__btn_brainstorm)
         layout.addWidget(self.__btn_languages)
         layout.addStretch()
+
+        self.__btn_home.clicked.connect(lambda: self.view_changed.emit(0))
+        self.__btn_notebooks.clicked.connect(lambda: self.view_changed.emit(1))
+        self.__btn_tasks.clicked.connect(lambda: self.view_changed.emit(2))
+        self.__btn_brainstorm.clicked.connect(lambda: self.view_changed.emit(3))
+        self.__btn_languages.clicked.connect(lambda: self.view_changed.emit(4))
 
 
