@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QSplitter, QFrame, QVBoxLayout
+from PyQt5.QtWidgets import QSplitter,QFrame,QVBoxLayout,QHBoxLayout
 
 
 class Notebooks(QSplitter):
@@ -9,14 +9,22 @@ class Notebooks(QSplitter):
 
         self._setup_notebooks_directories()
         self._setup_notebooks_area()
-        self.setSizes([240, 800])
+        self.setSizes([295, 800])
 
     def _setup_notebooks_directories(self):
         self.__notebooks_dir = QFrame()
+        self.__notebooks_dir.setContentsMargins(10,2,10,20)
         self.__notebooks_dir.setObjectName("Frame_Buttons_Directories")
-        self.__notebooks_dir.setMinimumWidth(240)
+        self.__notebooks_dir.setMinimumWidth(295)
         self.__notebooks_dir.setMaximumWidth(350)
         layout = QVBoxLayout(self.__notebooks_dir)
+
+        #...LAYOUT - SUPERIOR
+        
+
+        #...LAYOUT - INFERIOR
+
+        #...LAYOUT - GERAL
 
         self.addWidget(self.__notebooks_dir)
 

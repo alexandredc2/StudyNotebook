@@ -138,6 +138,32 @@ def central_style():
             padding-top: 5px;
             border: none;
             color: {t['color_dflt_directories']};
+            outline: 0;
+        }}
+        QTreeWidget#Trees_Functions_Directories::item:hover{{
+            background-color: transparent;
+            border: 1px solid {t['border']};
+            border-radius: 5px;
+            outline: 0;
+        }}
+        QTreeWidget#Trees_Functions_Directories::item:selected{{
+            background-color: {t['background_dir_finder']};
+            border: 1px solid {t['border']};
+            border-radius: 5px;
+            outline: 0;
+        }}
+        QTreeWidget#Trees_Functions_Directories::item:selected:active{{
+            outline: 0;
+            color: {t['color_sele_directories']};
+        }}
+        QTreeWidget#Trees_Functions_Directories::item:selected:!active{{
+            outline: 0;
+            color: {t['color_sele_directories']};
+        }}
+        QTreeWidget#Trees_Functions_Directories QLineEdit{{
+            background-color: transparent;
+            selection-background-color: {t['background_dir_finder']};
+            color: {t['color_sele_directories']};
         }}
         
         QGraphicsView#BrainstormCanvas{{
